@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HANNOVER - Control de Lotes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    @keyframes fadeIn { from {opacity:0;transform:translateY(15px);} to {opacity:1;transform:translateY(0);} }
+    .fade-in { animation: fadeIn 0.8s ease-out; }
+    .logo-hover { transition: transform 0.3s ease, filter 0.3s ease; }
+    .logo-hover:hover { transform: scale(1.05); filter: drop-shadow(0 0 6px rgba(245,158,11,0.7)); }
+  </style>
+</head>
+<body class="bg-gradient-to-b from-amber-50 to-yellow-50 min-h-screen flex flex-col font-[Inter]">
+
+  <!-- Barra de navegación -->
+  <nav class="bg-amber-700/95 backdrop-blur-md shadow-md fixed w-full top-0 z-10 border-b border-amber-800">
+    <div class="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
+      <a href="index.html" class="flex items-center space-x-3 logo-hover">
+        <img src="hannoverbeer.png" alt="Logo HANNOVER" class="w-10 h-10 object-contain">
+        <span class="text-xl font-bold text-amber-100 tracking-wide">HANNOVER</span>
+      </a>
+      <div class="space-x-6 text-amber-100 font-medium">
+        <a href="spc.html" class="text-yellow-200 font-semibold">Control Estadístico</a>
+        <a href="ingresar.html" class="hover:text-yellow-200 transition">Ingresar Lote</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Contenido principal -->
+  <main class="flex-grow pt-28 pb-10 fade-in">
+    <div class="max-w-6xl mx-auto px-6">
+
+      <header class="text-center mb-10">
+        <h1 class="text-4xl font-extrabold text-amber-800 mb-2">Control Estadístico de Lotes</h1>
+        <p class="text-gray-700 text-lg">Monitoreo del porcentaje de alcohol y detección automática de desviaciones</p>
+      </header>
+
+      <!-- Selección de lotes -->
+      <section class="bg-white shadow rounded-2xl p-6 mb-8 border border-amber-100">
+        <h2 class="text-xl font-semibold text-amber-800 mb-4">Seleccionar rango de lotes</h2>
+        <div class="flex flex-wrap items-center gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Desde lote:</label>
+            <select id="inicio" class="border rounded px-3 py-1 border-amber-300 focus:ring-amber-500"></select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Hasta lote:</label>
+            <select id="fin" class="border rounded px-3 py-1 border-amber-300 focus:ring-amber-500"></select>
+          </div>
+          <div class="flex gap-3 mt-2">
+            <button id="calcularBtn" class="px-5 py-2 bg-amber-700 text-white rounded hover:bg-amber-800 transition shadow">
+              Calcular Control
+            </button>
+            <button id="reiniciarBtn" class="px-5 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition shadow">
+              Reiniciar
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Resultados estadísticos -->
+      <section class="bg-white shadow rounded-2xl p-6 mb-8 border border-amber-100">
+        <h2 class="text-xl font-semibold text-amber-800 mb-4">Resultados Estadísticos</h2>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
+          <div><div class="text-gray-500 text-sm">Promedio (X̄)</div><div id="promedio" class="text-2xl font-semibold text-amber-700">-</div></div>
+          <div><div class="text-gray-500 text-sm">Desviación Estándar (σ)</div><div id="desviacion" class="text-2xl font-semibold text-amber-700">-</div></div>
+          <div><div class="text-gray-500 text-sm">Rango</div><div id="rango" class="text-2xl font-semibold text-amber-700">-</div></div>
+          <div><div class="text-gray-500 text-sm">Límite Superior (UCL)</div><div id="ucl" class="text-2xl font-semibold text-red-600">-</div></div>
+          <div><div class="text-gray-500 text-sm">Límite Inferior (LCL)</div><div id="lcl" class="text-2xl font-semibold text-red-600">-</div></div>
+          <div><div class="text-gray-500 text-sm">Cantidad de Lotes</div><div id="cantidad" class="text-2xl font-semibold text-amber-700">-</div></div>
+        </div>
+      </section>
+
+      <!-- Estado del proceso -->
+      <section class="bg-white shadow rounded-2xl p-6 mb-8 border border-amber-100 text-center">
+        <h2 class="text-xl font-semibold text-amber-800 mb-4">Estado del Proceso</h2>
+        <div id="estadoProceso" class="text-2xl font-bold text-gray-600 mb-3">-</div>
+        <div id="recomendacion" class="text-gray-700 text-base"></div>
+        <div id="lotesFuera" class="mt-4 text-gray-800 font-medium"></div>
+      </section>
+
+      <!-- Gráfica -->
+      <section id="reporte" class="bg-white shadow rounded-2xl p-6 mb-2 border border-amber-100">
+        <h2 class="text-xl font-semibold text-amber-800 mb-4">Gráfica de Control del % de Alcohol</h2>
+        <div class="h-80"><canvas id="graficoLotes"></canvas></div>
+      </section>
+
+      <!-- Botón PDF fuera de la sección -->
+      <div class="text-center mb-8">
+        <button id="btnPDF" class="bg-amber-700 hover:bg-amber-800 text-white px-4 py-2 rounded-lg shadow font-semibold transition">
+          📥 Descargar Reporte PDF
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="text-center py-4 bg-amber-700 text-amber-100 text-sm border-t border-amber-800">
+    © 2025 HANNOVER — Elaboración Artesanal con Estándares Internacionales
+  </footer>
+
+<script>
+// === Datos y selección ===
+const base = [6.0, 5.8, 5.0, 4.7, 5.2, 5.0, 4.9, 5.3, 4.7, 5.0, 5.0, 5.1, 4.6, 5.2, 5.1, 4.9, 5.3, 4.7, 5.0, 5.0];
+let guardados = JSON.parse(localStorage.getItem("lotesHannover")) || [];
+const nuevos = guardados.filter(l => typeof l.promedio === "number" && !isNaN(l.promedio)).map(l => l.promedio);
+const datos = [...base, ...nuevos];
+
+let seleccionActual = [];
+let inicioActual = 1;
+
+// DOM
+const inicioSel = document.getElementById('inicio');
+const finSel = document.getElementById('fin');
+const promedioEl = document.getElementById('promedio');
+const desviacionEl = document.getElementById('desviacion');
+const rangoEl = document.getElementById('rango');
+const cantidadEl = document.getElementById('cantidad');
+const uclEl = document.getElementById('ucl');
+const lclEl = document.getElementById('lcl');
+const estadoProceso = document.getElementById('estadoProceso');
+const recomendacion = document.getElementById('recomendacion');
+const lotesFueraEl = document.getElementById('lotesFuera');
+let chart = null;
+
+// Selects
+function llenarSelects() {
+  inicioSel.innerHTML = ''; finSel.innerHTML = '';
+  for (let i = 1; i <= datos.length; i++) {
+    const o1 = document.createElement('option');
+    const o2 = document.createElement('option');
+    o1.value = o2.value = i;
+    o1.textContent = o2.textContent = i;
+    inicioSel.appendChild(o1); finSel.appendChild(o2);
+  }
+  inicioSel.value = 1; finSel.value = datos.length;
+}
+llenarSelects();
+
+// Estadísticas
+function calcularEstadisticas(valores) {
+  const n = valores.length;
+  const promedio = valores.reduce((a,b)=>a+b,0)/n;
+  const desviacion = Math.sqrt(valores.reduce((a,b)=>a+Math.pow(b-promedio,2),0)/(n-1));
+  const rango = Math.max(...valores)-Math.min(...valores);
+  return { promedio, desviacion, rango, UCL: promedio+3*desviacion, LCL: promedio-3*desviacion };
+}
+
+function actualizarResultados(valores, stats) {
+  promedioEl.textContent = stats.promedio.toFixed(3)+'%';
+  desviacionEl.textContent = stats.desviacion.toFixed(3);
+  rangoEl.textContent = stats.rango.toFixed(3);
+  uclEl.textContent = stats.UCL.toFixed(3);
+  lclEl.textContent = stats.LCL.toFixed(3);
+  cantidadEl.textContent = valores.length;
+}
+
+function evaluarProceso(valores, stats, inicio) {
+  const LIM_SUP = 5.400, LIM_INF = 4.800;
+  const fuera = [];
+  valores.forEach((v,i)=>{
+    const n=i+parseInt(inicio);
+    if(v>stats.UCL||v<stats.LCL||v>LIM_SUP||v<LIM_INF){fuera.push({lote:n,valor:v});}
+  });
+  if(stats.promedio>LIM_SUP){estadoProceso.textContent="⚠️ Fuera de control — Exceso de alcohol";
+    estadoProceso.className="text-2xl font-bold text-red-600";
+    recomendacion.innerHTML=`Promedio global ${stats.promedio.toFixed(3)}% supera 5.4%.<br>💡 Reducir tiempo/temperatura de fermentación y verificar instrumentos.`;}
+  else if(stats.promedio<LIM_INF){estadoProceso.textContent="⚠️ Fuera de control — Bajo alcohol";
+    estadoProceso.className="text-2xl font-bold text-red-600";
+    recomendacion.innerHTML=`Promedio global ${stats.promedio.toFixed(3)}% menor a 4.8%.<br>💡 Revisar levadura y azúcares fermentables.`;}
+  else if(fuera.length>0){estadoProceso.textContent="⚠️ Proceso con lotes fuera de control";
+    estadoProceso.className="text-2xl font-bold text-yellow-600";
+    recomendacion.innerHTML=`Se detectaron ${fuera.length} lotes fuera de control. Revisa calibración e instrumentos.`;}
+  else{estadoProceso.textContent="✅ Proceso bajo control";
+    estadoProceso.className="text-2xl font-bold text-green-600";
+    recomendacion.textContent="No se detectaron desviaciones.";}
+  lotesFueraEl.innerHTML=fuera.length>0?`<div class="bg-amber-50 border border-amber-300 rounded p-3 text-left"><strong>Lotes fuera de control:</strong><br>${fuera.map(f=>`Lote ${f.lote} → ${f.valor.toFixed(3)}%`).join("<br>")}</div>`:"";
+}
+
+// Gráfico
+function graficar(valores, stats, inicio){
+  const ctx=document.getElementById('graficoLotes').getContext('2d');
+  if(chart) chart.destroy();
+  const colores=valores.map(v=>(v>stats.UCL||v<stats.LCL)?'#ef4444':'#92400e');
+  const labels=valores.map((_,i)=>'Lote '+(i+parseInt(inicio)));
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{labels:labels,datasets:[
+      {label:'% Alcohol',data:valores,borderColor:'#92400e',pointBackgroundColor:colores,fill:false,tension:0.3},
+      {label:'Media (X̄)',data:Array(valores.length).fill(stats.promedio),borderDash:[5,5],borderColor:'#ca8a04',fill:false},
+      {label:'Límite Superior (UCL)',data:Array(valores.length).fill(stats.UCL),borderDash:[4,4],borderColor:'#ef4444',fill:false},
+      {label:'Límite Inferior (LCL)',data:Array(valores.length).fill(stats.LCL),borderDash:[4,4],borderColor:'#ef4444',fill:false},
+      {label:'Especificación 5.4%',data:Array(valores.length).fill(5.4),borderDash:[2,2],borderColor:'#f59e0b',fill:false},
+      {label:'Especificación 4.8%',data:Array(valores.length).fill(4.8),borderDash:[2,2],borderColor:'#f59e0b',fill:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
+  });
+}
+
+// Botones
+document.getElementById('calcularBtn').addEventListener('click',()=>{
+  const inicio=parseInt(inicioSel.value), fin=parseInt(finSel.value);
+  if(inicio>=fin){alert("Selecciona un rango válido."); return;}
+  seleccionActual = datos.slice(inicio-1,fin);
+  inicioActual = inicio;
+  const stats = calcularEstadisticas(seleccionActual);
+  actualizarResultados(seleccionActual,stats);
+  graficar(seleccionActual,stats,inicio);
+  evaluarProceso(seleccionActual,stats,inicio);
+});
+
+document.getElementById('reiniciarBtn').addEventListener('click',()=>{
+  llenarSelects();
+  [promedioEl,desviacionEl,rangoEl,cantidadEl,uclEl,lclEl].forEach(e=>e.textContent='-');
+  estadoProceso.textContent='-'; estadoProceso.className="text-2xl font-bold text-gray-600 mb-3";
+  recomendacion.innerHTML=''; lotesFueraEl.innerHTML='';
+  if(chart){chart.destroy(); chart=null;}
+});
+
+// PDF
+document.getElementById("btnPDF").addEventListener("click", async () => {
+  try {
+    const { jsPDF } = window.jspdf;
+    const reporte = document.getElementById("reporte");
+    const canvas = await html2canvas(reporte, { scale: 2, useCORS: true });
+    const imgData = canvas.toDataURL("image/png");
+
+    const pdf = new jsPDF("p","mm","a4");
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const imgWidth = pageWidth - 20;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    // Encabezado
+    pdf.setFontSize(16);
+    pdf.text("HANNOVER - Reporte de Control Estadístico de Lotes",10,18);
+    pdf.setFontSize(10);
+    pdf.text(`Fecha: ${new Date().toLocaleString()}`,10,25);
+    pdf.text("Área: Control de Calidad – Planta Hannover",10,30);
+
+    // Logo
+    const logo = document.querySelector("nav img");
+    if(logo){
+      try{
+        const logoCanvas = await html2canvas(logo,{backgroundColor:null});
+        const logoImg = logoCanvas.toDataURL("image/png");
+        pdf.addImage(logoImg,"PNG",160,8,30,30);
+      }catch(e){console.warn("No se pudo agregar el logo:",e);}
+    }
+
+    // Imagen de gráfica
+    pdf.addImage(imgData,"PNG",10,40,imgWidth,imgHeight);
+
+    // Lotes fuera de control del rango
+    const stats = calcularEstadisticas(seleccionActual);
+    const fuera = seleccionActual
+      .map((v,i)=>({lote:i+inicioActual,valor:v}))
+      .filter(x => x.valor > 5.4 || x.valor < 4.8);
+
+    pdf.addPage();
+    pdf.setFontSize(14);
+    pdf.text("Lotes Fuera de Control",10,20);
+
+    pdf.setFontSize(12);
+    if(fuera.length>0){
+      let y=30;
+      fuera.forEach(l=>{
+        pdf.setFillColor(255, 248, 225); // fondo amarillo claro
+        pdf.rect(10,y-5,190,8,'F'); // cuadro
+        pdf.text(`Lote ${l.lote} → ${l.valor.toFixed(3)}%`,12,y);
+        y+=10;
+      });
+    } else {
+      pdf.text("✅ Todos los lotes están dentro del rango de control (4.8% - 5.4%)",10,35);
+    }
+
+    pdf.save("Reporte_Control_HANNOVER.pdf");
+  } catch(error){
+    console.error("Error al generar PDF:",error);
+    alert("❌ No se pudo generar el PDF. Revisa la consola para más detalles.");
+  }
+});
+</script>
+</body>
+</html>
