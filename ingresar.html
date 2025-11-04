@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HANNOVER - Ingresar Lote</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .logo-hover { transition: transform 0.3s ease, filter 0.3s ease; }
+    .logo-hover:hover { transform: scale(1.05); filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.7)); }
+  </style>
+</head>
+
+<body class="bg-gradient-to-b from-amber-50 to-yellow-50 min-h-screen flex flex-col font-[Inter]">
+
+  <!-- 🔹 Barra -->
+  <nav class="bg-amber-700/95 backdrop-blur-md shadow-md fixed w-full top-0 z-10 border-b border-amber-800">
+    <div class="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
+      <a href="index.html" class="flex items-center space-x-3 logo-hover">
+        <img src="hannoverbeer.png" alt="Logo HANNOVER" class="w-10 h-10 object-contain">
+        <span class="text-xl font-bold text-amber-100 tracking-wide">HANNOVER</span>
+      </a>
+      <div class="space-x-6 text-amber-100 font-medium">
+        <a href="spc.html" class="hover:text-yellow-200 transition">Control Estadístico</a>
+        <a href="ingresar.html" class="text-yellow-200 font-semibold">Ingresar Lote</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 🔹 Formulario -->
+  <main class="flex-grow pt-28 pb-10">
+    <div class="max-w-lg mx-auto bg-white shadow rounded-2xl p-8 border border-amber-100">
+      <h1 class="text-3xl font-extrabold text-amber-800 mb-4 text-center">Ingresar Nuevo Lote</h1>
+      <p class="text-gray-600 text-center mb-6">Cada lote representa 24 cervezas controladas.</p>
+
+      <form id="formLote" class="space-y-5" onsubmit="return false;">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Número de Lote:</label>
+          <input type="number" id="numLote" min="1" class="w-full border rounded px-3 py-2 border-amber-300 focus:ring-amber-500" required>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">% Promedio de Alcohol:</label>
+          <input type="number" id="alcohol" step="0.01" min="0" class="w-full border rounded px-3 py-2 border-amber-300 focus:ring-amber-500" required>
+        </div>
+
+        <button id="guardarBtn" type="button" class="w-full bg-amber-700 hover:bg-amber-800 text-white py-2 rounded-lg shadow font-semibold">
+          Guardar Lote
+        </button>
+      </form>
+
+      <div id="mensaje" class="mt-6 text-center text-lg font-semibold"></div>
+
+      <!-- 🔹 Gráfico -->
+      <div class="mt-8">
+        <canvas id="graficoLote" class="w-full h-64"></canvas>
+      </div>
+    </div>
+  </main>
+
+  <footer class="text-center py-4 bg-amber-700 text-amber-100 text-sm border-t border-amber-800">
+    © 2025 HANNOVER — Elaboración Artesanal con Estándares Internacionales
+  </footer>
+
+<script>
+let chart = null;
+
+// Genera 24 valores con ligera variación alrededor del promedio
+function generarValores(promedio) {
+  const valores = [];
+  for (let i = 0; i < 24; i++) {
+    const variacion = (Math.random() - 0.5) * 0.2; // ±0.1 alrededor
+    valores.push(parseFloat((promedio + variacion).toFixed(3)));
+  }
+  return valores;
+}
+
+// Graficar las 24 cervezas del lote
+function graficar(valores, numLote) {
+  const ctx = document.getElementById('graficoLote').getContext('2d');
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: valores.map((_, i) => "Cerveza " + (i + 1)),
+      datasets: [{
+        label: `% de Alcohol - Lote ${numLote}`,
+        data: valores,
+        backgroundColor: '#92400e',
+        borderColor: '#78350f',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: false,
+          suggestedMin: Math.min(...valores) - 0.1,
+          suggestedMax: Math.max(...valores) + 0.1,
+          title: { display: true, text: '% de Alcohol' }
+        }
+      }
+    }
+  });
+}
+
+document.getElementById("guardarBtn").addEventListener("click", () => {
+  const num = parseInt(document.getElementById("numLote").value);
+  const alc = parseFloat(document.getElementById("alcohol").value);
+  const mensaje = document.getElementById("mensaje");
+
+  if (!num || !alc) {
+    mensaje.textContent = "⚠️ Completa todos los campos correctamente.";
+    mensaje.className = "text-red-600 text-center mt-6 font-semibold";
+    return;
+  }
+
+  // Generar 24 cervezas del lote
+  const cervezas = generarValores(alc);
+
+  // Guardar en localStorage
+  let lotes = JSON.parse(localStorage.getItem("lotesHannover")) || [];
+  lotes.push({ lote: num, promedio: alc, cervezas: cervezas });
+  localStorage.setItem("lotesHannover", JSON.stringify(lotes));
+
+  mensaje.innerHTML = `✅ Lote <strong>#${num}</strong> guardado (24 cervezas promedio ${alc}%).`;
+  mensaje.className = "text-green-700 text-center mt-6 font-semibold";
+
+  graficar(cervezas, num);
+
+  document.getElementById("numLote").value = "";
+  document.getElementById("alcohol").value = "";
+});
+</script>
+
+</body>
+</html>
